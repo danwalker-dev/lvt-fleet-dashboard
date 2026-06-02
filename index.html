@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet Utilization Tracker — LVT</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap');
+
+  :root {
+    --teal-dark:   #1a7a72;
+    --teal-mid:    #22a99d;
+    --teal-bright: #2ec4b6;
+    --teal-light:  #3dddd0;
+    --navy:        #0d2b2e;
+    --navy-mid:    #163439;
+    --panel-bg:    #1b3c40;
+    --amber:       #f5a623;
+    --red-alert:   #e84040;
+    --green-ok:    #2ec47a;
+    --white:       #f0fafa;
+    --muted:       #7cb8b4;
+    --border:      rgba(46,196,182,0.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--navy);
+    font-family: 'Barlow', sans-serif;
+    color: var(--white);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 36px;
+    background: var(--navy-mid);
+    border-bottom: 2px solid var(--teal-mid);
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-box {
+    background: var(--teal-bright);
+    color: var(--navy);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: -1px;
+    padding: 4px 9px;
+    border-radius: 3px;
+  }
+  .logo-text {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--teal-light);
+    text-transform: uppercase;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .header-right strong { color: var(--white); }
+  .refresh-badge {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    color: var(--teal-light);
+  }
+  .refresh-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    background: var(--green-ok);
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* MAIN */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+    padding: 32px 36px;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+
+  /* GAUGE CARD */
+  .gauge-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 36px 40px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .gauge-card::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(46,196,182,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .card-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 28px;
+    align-self: flex-start;
+  }
+
+  /* GAUGE SVG */
+  .gauge-wrap {
+    position: relative;
+    width: 320px;
+    height: 190px;
+    margin-bottom: 6px;
+  }
+  .gauge-svg { width: 100%; height: 100%; overflow: visible; }
+  .gauge-center {
+    position: absolute;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+  .gauge-pct {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+  .gauge-pct.off-track { color: var(--red-alert); }
+  .gauge-pct.on-track  { color: var(--green-ok); }
+  .gauge-pct-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: 1px;
+  }
+
+  /* STATUS PILL */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 30px;
+    padding: 8px 22px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 18px;
+  }
+  .status-pill.off-track {
+    background: rgba(232,64,64,0.12);
+    border: 1.5px solid rgba(232,64,64,0.5);
+    color: var(--red-alert);
+  }
+  .status-pill.on-track {
+    background: rgba(46,196,122,0.12);
+    border: 1.5px solid rgba(46,196,122,0.5);
+    color: var(--green-ok);
+  }
+  .status-icon { font-size: 18px; }
+
+  /* GAP CALLOUT */
+  .gap-callout {
+    margin-top: 20px;
+    background: rgba(232,64,64,0.07);
+    border-left: 3px solid var(--red-alert);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    align-self: stretch;
+  }
+  .gap-callout strong { color: var(--white); }
+  .gap-callout.ok {
+    background: rgba(46,196,122,0.07);
+    border-left-color: var(--green-ok);
+  }
+
+  /* HISTORY PANEL */
+  .history-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 26px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .history-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .history-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+    gap: 10px;
+  }
+  .history-row:last-child { border-bottom: none; }
+  .history-date { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .history-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 0 10px;
+  }
+  .history-bar { height: 100%; border-radius: 3px; transition: width 1s ease; }
+  .history-bar.red   { background: var(--red-alert); }
+  .history-bar.amber { background: var(--amber); }
+  .history-bar.green { background: var(--green-ok); }
+  .history-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    width: 46px;
+    text-align: right;
+  }
+  .history-val.red   { color: var(--red-alert); }
+  .history-val.amber { color: var(--amber); }
+  .history-val.green { color: var(--green-ok); }
+  .current-tag {
+    font-size: 10px;
+    background: var(--teal-mid);
+    color: var(--navy);
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+
+  /* STATS ROW */
+  .stats-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .stat-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .stat-card.teal::after  { background: var(--teal-bright); }
+  .stat-card.red::after   { background: var(--red-alert); }
+  .stat-card.amber::after { background: var(--amber); }
+  .stat-card.green::after { background: var(--green-ok); }
+  .stat-name {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .stat-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .stat-val.teal  { color: var(--teal-bright); }
+  .stat-val.red   { color: var(--red-alert); }
+  .stat-val.amber { color: var(--amber); }
+  .stat-val.green { color: var(--green-ok); }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ERROR BANNER */
+  .error-banner {
+    display: none;
+    background: rgba(232,64,64,0.1);
+    border: 1px solid rgba(232,64,64,0.3);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--red-alert);
+    margin: 0 36px;
+  }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 16px;
+    font-size: 11px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    letter-spacing: 1px;
+    margin-top: 8px;
+  }
+  footer a { color: var(--teal-mid); text-decoration: none; }
+
+  @keyframes sweepIn { from { stroke-dashoffset: 428; } }
+  .gauge-fill { animation: sweepIn 1.4s cubic-bezier(.4,0,.2,1) forwards; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-box">LVT</div>
+    <div class="logo-text">Fleet Utilization Monitor</div>
+  </div>
+  <div class="header-right">
+    <div class="refresh-badge">
+      <span class="refresh-dot"></span>Weekly Auto-Refresh
+    </div>
+    <div>Data as of <strong id="dataDate">—</strong></div>
+    <div>Next refresh <strong id="nextRefresh">—</strong></div>
+  </div>
+</header>
+
+<div class="error-banner" id="errorBanner"></div>
+
+<main>
+
+  <!-- GAUGE -->
+  <div class="gauge-card">
+    <div class="card-label">Total Fleet Utilization</div>
+    <div class="gauge-wrap">
+      <svg class="gauge-svg" viewBox="0 0 320 190">
+        <defs>
+          <linearGradient id="fillGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="#e84040"/>
+            <stop offset="40%"  stop-color="#f5a623"/>
+            <stop offset="80%"  stop-color="#2ec4b6"/>
+            <stop offset="100%" stop-color="#2ec47a"/>
+          </linearGradient>
+        </defs>
+        <path d="M 24 176 A 136 136 0 0 1 296 176"
+          fill="none" stroke="rgba(255,255,255,0.07)"
+          stroke-width="22" stroke-linecap="round"/>
+        <path id="gaugeFill"
+          d="M 24 176 A 136 136 0 0 1 296 176"
+          fill="none" stroke="url(#fillGrad)"
+          stroke-width="22" stroke-linecap="round"
+          stroke-dasharray="428" stroke-dashoffset="428"
+          class="gauge-fill"/>
+        <g id="targetMarker"></g>
+        <text x="18"  y="195" fill="#e84040" font-size="10" font-family="Barlow Condensed" font-weight="700">0%</text>
+        <text x="272" y="195" fill="#2ec47a" font-size="10" font-family="Barlow Condensed" font-weight="700">100%</text>
+        <text x="144" y="20"  fill="#f5a623" font-size="10" font-family="Barlow Condensed" font-weight="700" text-anchor="middle">TARGET</text>
+        <text x="144" y="31"  fill="#f5a623" font-size="10" font-family="Barlow Condensed" font-weight="700" text-anchor="middle">92%</text>
+      </svg>
+      <div class="gauge-center">
+        <div class="gauge-pct off-track" id="gaugePct">—</div>
+        <div class="gauge-pct-label">CURRENT UTILIZATION</div>
+      </div>
+    </div>
+    <div class="status-pill off-track" id="statusPill">
+      <span class="status-icon">⚠</span>
+      <span id="statusText">LOADING</span>
+    </div>
+    <div class="gap-callout" id="gapCallout">&nbsp;</div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="history-card">
+    <div class="history-title">Weekly History</div>
+    <div id="historyList"></div>
+    <div style="margin-top:16px;font-size:11px;color:var(--muted);line-height:1.6;">
+      <span style="color:var(--red-alert);">■</span> Below 88% &nbsp;
+      <span style="color:var(--amber);">■</span> 88–92% &nbsp;
+      <span style="color:var(--green-ok);">■</span> ≥ 92%
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card teal">
+      <div class="stat-name">Total Fleet</div>
+      <div class="stat-val teal" id="statFleet">—</div>
+      <div class="stat-sub">MSUs + Live Units</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-name">In Use</div>
+      <div class="stat-val green" id="statInUse">—</div>
+      <div class="stat-sub">Revenue + Non-Rev</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-name">Gap to Target</div>
+      <div class="stat-val red" id="statGap">—</div>
+      <div class="stat-sub">at 92% goal</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-name">Units Needed</div>
+      <div class="stat-val amber" id="statUnits">—</div>
+      <div class="stat-sub">to reach 92%</div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  LVT Fleet Management · Auto-refreshes every Monday 6:00 AM MT ·
+  Source: <a href="https://us-west-2b.online.tableau.com/#/site/lvt/views/FleetManagementDashboard/FleetOverview" target="_blank">Tableau — Fleet Overview</a> ·
+  Last updated: <span id="footerDate">—</span>
+</footer>
+
+<script>
+const ARC_LEN = 428;
+
+function pctToOffset(pct) {
+  return ARC_LEN - (pct / 100) * ARC_LEN;
+}
+
+function arcPoint(pct) {
+  const angle = Math.PI + (pct / 100) * Math.PI;
+  return {
+    x: 160 + 136 * Math.cos(angle),
+    y: 176 + 136 * Math.sin(angle)
+  };
+}
+
+function colorClass(val, target) {
+  if (val >= target) return 'green';
+  if (val >= 88)     return 'amber';
+  return 'red';
+}
+
+function formatDate(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function nextMonday() {
+  const d   = new Date();
+  const diff = (1 + 7 - d.getDay()) % 7 || 7;
+  d.setDate(d.getDate() + diff);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function drawTargetNeedle(target) {
+  const p = arcPoint(target);
+  const inner = {
+    x: 160 + 110 * Math.cos(Math.PI + (target / 100) * Math.PI),
+    y: 176 + 110 * Math.sin(Math.PI + (target / 100) * Math.PI)
+  };
+  document.getElementById('targetMarker').innerHTML = `
+    <line x1="${p.x}" y1="${p.y}" x2="${inner.x}" y2="${inner.y}"
+      stroke="#f5a623" stroke-width="2.5" stroke-dasharray="4 3"/>
+    <circle cx="${p.x}" cy="${p.y}" r="5"
+      fill="#f5a623" stroke="var(--navy-mid)" stroke-width="2"/>
+  `;
+}
+
+function renderHistory(history, target) {
+  const container = document.getElementById('historyList');
+  const recent = [...history].reverse().slice(0, 8);
+  container.innerHTML = recent.map((row, i) => {
+    const cc   = colorClass(row.value, target);
+    const barW = Math.min(100, row.value).toFixed(1);
+    return `
+      <div class="history-row">
+        <span class="history-date">${formatDate(row.date)}</span>
+        <div class="history-bar-wrap">
+          <div class="history-bar ${cc}" style="width:${barW}%"></div>
+        </div>
+        <span class="history-val ${cc}">${row.value.toFixed(1)}%</span>
+        ${i === 0 ? '<span class="current-tag">NOW</span>' : ''}
+      </div>`;
+  }).join('');
+}
+
+async function render() {
+  let data;
+  try {
+    // Fetch data.json — generated weekly by GitHub Actions
+    const resp = await fetch('data.json?t=' + Date.now());
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    data = await resp.json();
+  } catch (err) {
+    document.getElementById('errorBanner').style.display = 'block';
+    document.getElementById('errorBanner').textContent =
+      'Could not load data.json — ' + err.message;
+    return;
+  }
+
+  const val     = data.utilization;
+  const target  = data.target  || 92.0;
+  const fleet   = data.fleet_total || 12399;
+  const history = data.history || [];
+  const isOK    = val >= target;
+  const gap     = (target - val).toFixed(1);
+  const inUse   = Math.round((val / 100) * fleet);
+  const unitGap = isOK ? 0 : Math.round(((target - val) / 100) * fleet);
+  const cc      = colorClass(val, target);
+
+  // Gauge
+  document.getElementById('gaugeFill').style.strokeDashoffset = pctToOffset(val);
+  const pctEl = document.getElementById('gaugePct');
+  pctEl.textContent = val.toFixed(1) + '%';
+  pctEl.className   = 'gauge-pct ' + (isOK ? 'on-track' : 'off-track');
+
+  // Status pill
+  const pill = document.getElementById('statusPill');
+  pill.className = 'status-pill ' + (isOK ? 'on-track' : 'off-track');
+  pill.querySelector('.status-icon').textContent = isOK ? '✓' : '⚠';
+  document.getElementById('statusText').textContent = isOK ? 'ON TRACK' : 'OFF TRACK';
+
+  // Gap callout
+  const callout = document.getElementById('gapCallout');
+  if (isOK) {
+    callout.className = 'gap-callout ok';
+    callout.innerHTML = `<strong>${(val - target).toFixed(1)} pp</strong> ahead of the 92% target — fleet is performing above goal.`;
+  } else {
+    callout.className = 'gap-callout';
+    callout.innerHTML = `<strong>${gap} percentage points</strong> below target — approximately <strong>${unitGap.toLocaleString()} units</strong> need to move from Not Deployed → In Use to close the gap.`;
+  }
+
+  // Stats
+  document.getElementById('statFleet').textContent  = fleet.toLocaleString();
+  document.getElementById('statInUse').textContent  = inUse.toLocaleString();
+  document.getElementById('statGap').textContent    = isOK ? '—' : gap + ' pp';
+  document.getElementById('statUnits').textContent  = isOK ? '—' : unitGap.toLocaleString();
+
+  // History
+  renderHistory(history, target);
+  drawTargetNeedle(target);
+
+  // Dates
+  const refreshed = new Date(data.refreshed_at);
+  document.getElementById('dataDate').textContent =
+    refreshed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  document.getElementById('nextRefresh').textContent = nextMonday();
+  document.getElementById('footerDate').textContent  =
+    refreshed.toLocaleString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+    });
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "utilization": 89.9,
+  "target": 92.0,
+  "fleet_total": 12399,
+  "refreshed_at": "2026-06-02T00:00:00+00:00",
+  "history": [
+    { "date": "2026-06-02", "value": 89.9 }
+  ]
+}
